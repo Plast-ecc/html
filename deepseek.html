@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PythonCamp · аналог freeCodeCamp</title>
+  <!-- Подключаем Pyodide (Python в браузере) -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background: #0a0c10;
+      color: #e4e6eb;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Хедер */
+    .header {
+      background: #0d1117;
+      border-bottom: 1px solid #21262d;
+      padding: 0.8rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      font-size: 1.5rem;
+      letter-spacing: -0.5px;
+    }
+
+    .logo span:first-child {
+      color: #3fb950;
+    }
+
+    .logo span:last-child {
+      color: #58a6ff;
+    }
+
+    .progress-badge {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 30px;
+      padding: 0.4rem 1rem;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .progress-badge .completed {
+      color: #3fb950;
+      font-weight: 600;
+    }
+
+    .progress-badge .total {
+      color: #8b949e;
+    }
+
+    /* Основной контейнер */
+    .app {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      height: calc(100vh - 73px);
+    }
+
+    /* Сайдбар */
+    .sidebar {
+      width: 320px;
+      background: #0d1117;
+      border-right: 1px solid #21262d;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: 1rem 1.2rem;
+      border-bottom: 1px solid #21262d;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #8b949e;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .lesson-list {
+      list-style: none;
+      padding: 0.5rem 0;
+    }
+
+    .lesson-item {
+      padding: 0.75rem 1.2rem;
+      border-left: 3px solid transparent;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      font-size: 0.95rem;
+    }
+
+    .lesson-item:hover {
+      background: #161b22;
+    }
+
+    .lesson-item.active {
+      background: #161b22;
+      border-left-color: #58a6ff;
+      color: #f0f6fc;
+    }
+
+    .lesson-item.completed .lesson-status {
+      color: #3fb950;
+    }
+
+    .lesson-status {
+      font-size: 1.1rem;
+      width: 20px;
+      text-align: center;
+      color: #484f58;
+    }
+
+    .lesson-title {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Основная область */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .lesson-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .lesson-header h1 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, #58a6ff, #3fb950);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .lesson-desc {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 1.2rem 1.5rem;
+      line-height: 1.6;
+      color: #c9d1d9;
+      font-size: 1rem;
+    }
+
+    .lesson-desc code {
+      background: #0d1117;
+      padding: 0.2rem 0.4rem;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.9em;
+      color: #f0883e;
+    }
+
+    .editor-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .editor-label {
+      font-weight: 500;
+      color: #8b949e;
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .editor-wrapper {
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #0d1117;
+      transition: border-color 0.2s;
+    }
+
+    .editor-wrapper:focus-within {
+      border-color: #58a6ff;
+      box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.15);
+    }
+
+    textarea.code-editor {
+      width: 100%;
+      min-height: 180px;
+      padding: 1rem;
+      background: #0d1117;
+      border: none;
+      color: #f0f6fc;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      resize: vertical;
+      outline: none;
+      tab-size: 4;
+    }
+
+    .output-wrapper {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 1rem 1.2rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 60px;
+      color: #c9d1d9;
+    }
+
+    .output-wrapper.error {
+      color: #f85149;
+      border-color: #f85149;
+    }
+
+    .output-wrapper.success {
+      color: #3fb950;
+      border-color: #3fb950;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 0.7rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: #238636;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #2ea043;
+    }
+
+    .btn-secondary {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+    }
+
+    .btn-secondary:hover {
+      background: #30363d;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status-message {
+      font-size: 0.9rem;
+      padding: 0.4rem 0;
+    }
+
+    .status-message.success {
+      color: #3fb950;
+    }
+
+    .status-message.error {
+      color: #f85149;
+    }
+
+    /* Модалка / загрузка */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      font-size: 1.2rem;
+      color: #58a6ff;
+      backdrop-filter: blur(4px);
+      transition: opacity 0.3s;
+    }
+
+    .loading-overlay.hidden {
+      display: none;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #21262d;
+      border-top-color: #58a6ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 1rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Скроллбар */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #0d1117;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #30363d;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #484f58;
+    }
+
+    @media (max-width: 800px) {
+      .app {
+        flex-direction: column;
+        height: auto;
+        overflow: visible;
+      }
+      .sidebar {
+        width: 100%;
+        max-height: 250px;
+        border-right: none;
+        border-bottom: 1px solid #21262d;
+      }
+      .content-area {
+        padding: 1rem;
+      }
+      .lesson-header h1 {
+        font-size: 1.4rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Прелоадер Pyodide -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <span>Загрузка Python-среды...</span>
+  </div>
+
+  <!-- Шапка -->
+  <header class="header">
+    <div class="logo">
+      <span>🐍</span>
+      <span>Python</span>
+      <span>Camp</span>
+    </div>
+    <div class="progress-badge" id="progressBadge">
+      <span>✅</span>
+      <span><span class="completed" id="completedCount">0</span> / <span class="total" id="totalCount">0</span> уроков</span>
+    </div>
+  </header>
+
+  <!-- Основной интерфейс -->
+  <div class="app">
+    <!-- Сайдбар с уроками -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span>📚 Курс Python</span>
+        <span id="sidebarProgress">0%</span>
+      </div>
+      <ul class="lesson-list" id="lessonList"></ul>
+    </aside>
+
+    <!-- Рабочая область -->
+    <main class="main">
+      <div class="content-area" id="contentArea">
+        <!-- Динамическое содержимое -->
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (async function() {
+      // ====================  КУРС  ====================
+      const course = [
+        {
+          id: 'intro',
+          title: 'Введение в Python',
+          description: `Python — это мощный язык программирования, который отлично подходит для начинающих. 
+Он читается почти как английский. В этом уроке мы напишем первую программу.`,
+          task: `Выведите на экран фразу: <code>Привет, PythonCamp!</code>`,
+          initialCode: `# Напишите ваш код ниже\nprint("Привет, мир!")`,
+          expectedOutput: "Привет, PythonCamp!",
+          hint: `Используйте функцию <code>print()</code> и не забудьте про кавычки.`
+        },
+        {
+          id: 'variables',
+          title: 'Переменные и типы данных',
+          description: `Переменные — это контейнеры для хранения данных. В Python не нужно объявлять тип заранее.
+Основные типы: <code>int</code> (целые), <code>float</code> (дробные), <code>str</code> (строки), <code>bool</code> (логические).`,
+          task: `Создайте переменную <code>name</code> со значением <code>"Алиса"</code> и переменную <code>age</code> со значением <code>25</code>.
+Затем выведите на экран строку: <code>Алиса, 25 лет</code> (используйте f-строку).`,
+          initialCode: `# Создайте переменные и выведите результат\nname = ?\nage = ?\nprint(f"{name}, {age} лет")`,
+          expectedOutput: "Алиса, 25 лет",
+          hint: `f-строка: <code>f"{name}, {age} лет"</code>. Присвойте name = "Алиса", age = 25.`
+        },
+        {
+          id: 'conditions',
+          title: 'Условные операторы if/else',
+          description: `Условные операторы позволяют выполнять код в зависимости от условия.
+В Python используются <code>if</code>, <code>elif</code>, <code>else</code> и отступы.`,
+          task: `Напишите программу, которая проверяет число <code>x = 10</code>.
+Если x > 5, выведите <code>"Больше 5"</code>, иначе <code>"Меньше или равно 5"</code>.`,
+          initialCode: `x = 10\n# Ваш код\n`,
+          expectedOutput: "Больше 5",
+          hint: `Используйте <code>if x > 5:</code> и <code>else:</code> с отступами.`
+        },
+        {
+          id: 'loops',
+          title: 'Циклы for и while',
+          description: `Циклы повторяют блок кода несколько раз. <code>for</code> обычно используется для перебора последовательностей,
+<code>while</code> — пока условие истинно.`,
+          task: `Выведите числа от 1 до 5 включительно, каждое с новой строки, используя цикл <code>for</code>.`,
+          initialCode: `# Используйте цикл for\n`,
+          expectedOutput: "1\n2\n3\n4\n5",
+          hint: `Используйте <code>for i in range(1, 6): print(i)</code>`
+        },
+        {
+          id: 'functions',
+          title: 'Функции',
+          description: `Функции — это блоки кода, которые можно вызывать многократно. Они помогают избежать дублирования.
+Определяются с помощью <code>def</code>.`,
+          task: `Создайте функцию <code>greet(name)</code>, которая возвращает строку <code>"Привет, {name}!"</code>.
+Вызовите её с аргументом <code>"Мир"</code> и выведите результат.`,
+          initialCode: `# Определите функцию greet\n`,
+          expectedOutput: "Привет, Мир!",
+          hint: `def greet(name): return f"Привет, {name}!"`
+        },
+        {
+          id: 'lists',
+          title: 'Списки (lists)',
+          description: `Списки — упорядоченные изменяемые коллекции. Создаются в квадратных скобках.
+Можно добавлять, удалять и изменять элементы.`,
+          task: `Создайте список <code>fruits = ["яблоко", "банан"]</code>.
+Добавьте <code>"апельсин"</code> с помощью <code>append()</code> и выведите список.`,
+          initialCode: `fruits = ["яблоко", "банан"]\n# Добавьте апельсин и выведите список\n`,
+          expectedOutput: "['яблоко', 'банан', 'апельсин']",
+          hint: `Используйте <code>fruits.append("апельсин")</code>, затем <code>print(fruits)</code>.`
+        },
+        {
+          id: 'dictionaries',
+          title: 'Словари (dictionaries)',
+          description: `Словари хранят пары ключ-значение. Ключи должны быть уникальными и неизменяемыми.
+Доступ к значениям осуществляется по ключу.`,
+          task: `Создайте словарь <code>person = {"name": "Иван", "age": 30}</code>.
+Выведите значение по ключу <code>"name"</code>.`,
+          initialCode: `person = {"name": "Иван", "age": 30}\n# Выведите имя\n`,
+          expectedOutput: "Иван",
+          hint: `print(person["name"])`
+        },
+        {
+          id: 'final',
+          title: 'Финальный проект: Калькулятор',
+          description: `Давайте создадим простой калькулятор, который складывает два числа.
+Это закрепит работу с функциями и вводом данных.`,
+          task: `Напишите функцию <code>add(a, b)</code>, возвращающую сумму.
+Вызовите её с числами <code>7</code> и <code>3</code> и выведите результат.`,
+          initialCode: `# Финальное задание\n`,
+          expectedOutput: "10",
+          hint: `def add(a, b): return a + b\nprint(add(7, 3))`
+        }
+      ];
+
+      // ====================  СОСТОЯНИЕ  ====================
+      let pyodide = null;
+      let currentLessonIndex = 0;
+      const completedLessons = new Set(); // id уроков
+
+      // DOM элементы
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      const lessonListEl = document.getElementById('lessonList');
+      const contentArea = document.getElementById('contentArea');
+      const completedCountEl = document.getElementById('completedCount');
+      const totalCountEl = document.getElementById('totalCount');
+      const sidebarProgress = document.getElementById('sidebarProgress');
+      const progressBadge = document.getElementById('progressBadge');
+
+      // ====================  ИНИЦИАЛИЗАЦИЯ PYODIDE  ====================
+      async function initPyodide() {
+        try {
+          pyodide = await loadPyodide({
+            stdout: (text) => { /* перехватываем вывод отдельно */ },
+            stderr: (text) => { /* перехватываем ошибки */ }
+          });
+          // Настраиваем перенаправление вывода
+          await pyodide.runPythonAsync(`
+            import sys
+            from io import StringIO
+            sys.stdout = StringIO()
+            sys.stderr = StringIO()
+          `);
+          loadingOverlay.classList.add('hidden');
+          console.log('Pyodide готов');
+          renderLessonList();
+          renderLesson(0);
+          updateProgress();
+        } catch (err) {
+          loadingOverlay.innerHTML = `<span style="color: #f85149;">Ошибка загрузки Python: ${err.message}</span>`;
+          console.error(err);
+        }
+      }
+
+      // ====================  ВЫПОЛНЕНИЕ PYTHON КОДА  ====================
+      async function runPythonCode(code) {
+        if (!pyodide) throw new Error('Python ещё не загружен');
+
+        // Сброс буферов
+        await pyodide.runPythonAsync(`
+          import sys
+          from io import StringIO
+          sys.stdout = StringIO()
+          sys.stderr = StringIO()
+        `);
+
+        let error = null;
+        try {
+          await pyodide.runPythonAsync(code);
+        } catch (e) {
+          error = e.message || String(e);
+        }
+
+        // Получаем stdout и stderr
+        const stdout = await pyodide.runPythonAsync('sys.stdout.getvalue()');
+        const stderr = await pyodide.runPythonAsync('sys.stderr.getvalue()');
+
+        return {
+          output: stdout,
+          error: error || (stderr ? stderr : null),
+          stderr: stderr
+        };
+      }
+
+      // ====================  ОТОБРАЖЕНИЕ УРОКОВ  ====================
+      function renderLessonList() {
+        lessonListEl.innerHTML = '';
+        course.forEach((lesson, idx) => {
+          const li = document.createElement('li');
+          li.className = `lesson-item ${idx === currentLessonIndex ? 'active' : ''} ${completedLessons.has(lesson.id) ? 'completed' : ''}`;
+          li.dataset.index = idx;
+
+          const statusSpan = document.createElement('span');
+          statusSpan.className = 'lesson-status';
+          statusSpan.textContent = completedLessons.has(lesson.id) ? '✓' : '○';
+
+          const titleSpan = document.createElement('span');
+          titleSpan.className = 'lesson-title';
+          titleSpan.textContent = lesson.title;
+
+          li.appendChild(statusSpan);
+          li.appendChild(titleSpan);
+
+          li.addEventListener('click', () => {
+            currentLessonIndex = idx;
+            renderLessonList();
+            renderLesson(idx);
+          });
+
+          lessonListEl.appendChild(li);
+        });
+        totalCountEl.textContent = course.length;
+      }
+
+      // ====================  ОТОБРАЖЕНИЕ УРОКА  ====================
+      function renderLesson(index) {
+        const lesson = course[index];
+        if (!lesson) return;
+
+        // Обновляем активный класс в списке
+        document.querySelectorAll('.lesson-item').forEach((el, i) => {
+          el.classList.toggle('active', i === index);
+        });
+
+        // Сохраняем код текущего урока, если пользователь что-то написал (простая реализация)
+        const existingTextarea = document.querySelector('.code-editor');
+        if (existingTextarea) {
+          const prevLesson = course[currentLessonIndex];
+          if (prevLesson) {
+            // Можно сохранять в объект, но для простоты не будем
+          }
+        }
+
+        // Формируем HTML
+        contentArea.innerHTML = `
+          <div class="lesson-header">
+            <h1>${lesson.title}</h1>
+            <span style="color: #8b949e; font-size: 0.9rem;">Урок ${index + 1} из ${course.length}</span>
+          </div>
+          <div class="lesson-desc">
+            <p>${lesson.description}</p>
+            <p style="margin-top: 0.8rem;"><strong>📌 Задание:</strong> ${lesson.task}</p>
+            ${lesson.hint ? `<p style="margin-top: 0.5rem; color: #8b949e; font-size: 0.9rem;"><em>💡 Подсказка: ${lesson.hint}</em></p>` : ''}
+          </div>
+
+          <div class="editor-section">
+            <div class="editor-label">
+              <span>✏️ Редактор Python</span>
+              <span style="color: #484f58; font-size: 0.8rem;">Shift+Enter для запуска</span>
+            </div>
+            <div class="editor-wrapper">
+              <textarea class="code-editor" id="codeEditor" spellcheck="false">${lesson.initialCode || '# Ваш код здесь\n'}</textarea>
+            </div>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn btn-primary" id="runBtn">▶ Запустить код</button>
+            <button class="btn btn-secondary" id="resetBtn">↺ Сбросить</button>
+            <button class="btn btn-secondary" id="checkBtn">✅ Проверить задание</button>
+          </div>
+
+          <div class="editor-label" style="margin-top: 0.5rem;">📤 Результат выполнения</div>
+          <div class="output-wrapper" id="output">Здесь появится вывод...</div>
+          <div class="status-message" id="statusMessage"></div>
+        `;
+
+        // Навешиваем обработчики
+        const runBtn = document.getElementById('runBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const checkBtn = document.getElementById('checkBtn');
+        const codeEditor = document.getElementById('codeEditor');
+        const outputEl = document.getElementById('output');
+        const statusMsg = document.getElementById('statusMessage');
+
+        // Запуск кода
+        runBtn.addEventListener('click', async () => {
+          if (!pyodide) {
+            outputEl.textContent = 'Python ещё загружается...';
+            return;
+          }
+          outputEl.className = 'output-wrapper';
+          outputEl.textContent = '⏳ Выполняется...';
+          statusMsg.textContent = '';
+          try {
+            const result = await runPythonCode(codeEditor.value);
+            if (result.error) {
+              outputEl.className = 'output-wrapper error';
+              outputEl.textContent = `❌ Ошибка: ${result.error}`;
+            } else {
+              outputEl.className = 'output-wrapper';
+              outputEl.textContent = result.output || '(пустой вывод)';
+            }
+          } catch (e) {
+            outputEl.className = 'output-wrapper error';
+            outputEl.textContent = `❌ Системная ошибка: ${e.message}`;
+          }
+        });
+
+        // Сброс кода
+        resetBtn.addEventListener('click', () => {
+          codeEditor.value = lesson.initialCode || '# Ваш код здесь\n';
+          outputEl.className = 'output-wrapper';
+          outputEl.textContent = 'Здесь появится вывод...';
+          statusMsg.textContent = '';
+          statusMsg.className = 'status-message';
+        });
+
+        // Проверка задания
+        checkBtn.addEventListener('click', async () => {
+          if (!pyodide) {
+            outputEl.textContent = 'Python ещё загружается...';
+            return;
+          }
+          outputEl.className = 'output-wrapper';
+          outputEl.textContent = '⏳ Проверка...';
+          statusMsg.textContent = '';
+          statusMsg.className = 'status-message';
+
+          try {
+            const result = await runPythonCode(codeEditor.value);
+            if (result.error) {
+              outputEl.className = 'output-wrapper error';
+              outputEl.textContent = `❌ Ошибка: ${result.error}`;
+              statusMsg.textContent = 'Исправьте ошибку и попробуйте снова.';
+              statusMsg.className = 'status-message error';
+              return;
+            }
+
+            const output = result.output.trim();
+            const expected = lesson.expectedOutput.trim();
+
+            if (output === expected) {
+              // Задание выполнено
+              if (!completedLessons.has(lesson.id)) {
+                completedLessons.add(lesson.id);
+                updateProgress();
+                renderLessonList();
+                // Обновляем статус текущего урока в списке
+                const items = document.querySelectorAll('.lesson-item');
+                if (items[index]) {
+                  items[index].classList.add('completed');
+                  items[index].querySelector('.lesson-status').textContent = '✓';
+                }
+              }
+              outputEl.className = 'output-wrapper success';
+              outputEl.textContent = output || '(пустой вывод)';
+              statusMsg.textContent = '🎉 Отлично! Задание выполнено верно!';
+              statusMsg.className = 'status-message success';
+            } else {
+              outputEl.className = 'output-wrapper';
+              outputEl.textContent = output || '(пустой вывод)';
+              statusMsg.textContent = `⚠️ Вывод не совпадает с ожидаемым. Ожидалось: "${expected}"`;
+              statusMsg.className = 'status-message error';
+            }
+          } catch (e) {
+            outputEl.className = 'output-wrapper error';
+            outputEl.textContent = `❌ Ошибка проверки: ${e.message}`;
+            statusMsg.textContent = 'Что-то пошло не так...';
+            statusMsg.className = 'status-message error';
+          }
+        });
+
+        // Shift+Enter для запуска
+        codeEditor.addEventListener('keydown', (e) => {
+          if (e.shiftKey && e.key === 'Enter') {
+            e.preventDefault();
+            runBtn.click();
+          }
+        });
+
+        // Фокус на редакторе
+        codeEditor.focus();
+      }
+
+      // ====================  ПРОГРЕСС  ====================
+      function updateProgress() {
+        const completed = completedLessons.size;
+        const total = course.length;
+        completedCountEl.textContent = completed;
+        totalCountEl.textContent = total;
+        const percent = total ? Math.round((completed / total) * 100) : 0;
+        sidebarProgress.textContent = percent + '%';
+        if (completed === total) {
+          progressBadge.style.borderColor = '#3fb950';
+        } else {
+          progressBadge.style.borderColor = '#30363d';
+        }
+      }
+
+      // ====================  ЗАПУСК  ====================
+      initPyodide();
+    })();
+  </script>
+</body>
+</html>
